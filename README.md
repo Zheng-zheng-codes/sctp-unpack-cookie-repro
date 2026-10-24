@@ -31,7 +31,7 @@ Kernel configs and command lines are in `kernel/` and `cmdline/`.
 - **7.1.3**:
   - syzkaller reproducer (`repro/repro.prog`) reproduces.
   - C reproducer (`repro/repro.cprog`) compiles and reproduces
-    (`gcc -O2 -pthread -o repro repro.cprog && ./repro`). See
+    (`gcc -x c -O2 -pthread -o repro repro.cprog && ./repro`). See
     `logs/serial-7.1.3-c-repro.log`.
 - **7.3.0**:
   - The standalone three-call program did **not** reproduce in two runs on a
