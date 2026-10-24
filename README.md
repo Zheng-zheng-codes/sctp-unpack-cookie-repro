@@ -39,7 +39,8 @@ Kernel configs and command lines are in `kernel/` and `cmdline/`.
   - Replaying the stored 42-program execution sequence
     (`repro/repro.kernsight.prog`) reproduced the crash (`logs/serial-7.3.log`).
     The SCTP trigger appears as program #40 and again inside the final
-    program #41.
+    program #41. A single executor process replays the programs one at a time;
+    earlier programs' kernel-side asynchronous effects are not cancelled.
   - The preceding execution sequence may affect reproducibility, but which
     preceding operations or environmental conditions matter has not been
     isolated.
@@ -52,7 +53,11 @@ All runs used a **freshly booted** VM, a threaded executor, `sandbox=none`,
 `853b104bb454141a5b0fc0e4218ec78e9f34ffb1+` (the `+` denotes local KernSight
 integration changes; see below).
 
-Programs are executed strictly in file order; there is no concurrency.
+Programs are replayed by a single executor process (`procs=1`) one at a time
+in file order, with `repeat=1`. The executor does not run programs in parallel,
+but a program can leave kernel-side asynchronous work behind (timers,
+workqueues, networking), so earlier programs' effects may still be active while
+later ones run.
 
 ### 7.1.3 — minimal program
 
@@ -86,6 +91,37 @@ ssh root@guest
 cd /tmp && chmod +x syz-execprog syz-executor
 ./syz-execprog -procs=1 -repeat=1 -disable=swap -executor ./syz-executor ./repro.kernsight.prog
 ```
+
+## Manual replay and verification
+
+To watch a replay by hand:
+
+1. Boot the guest with the serial console captured to a file, e.g.
+   `-serial file:$OUT/serial.log`, and follow it from another terminal with
+   `tail -f $OUT/serial.log`.
+2. Start `syz-execprog` in the guest as shown above. It prints
+   `parsed N programs`; add `-vv=1` to see every call's result:
+
+   ```sh
+   ./syz-execprog -vv=1 -procs=1 -repeat=1 -disable=swap      -executor ./syz-executor ./repro.kernsight.prog
+   ```
+
+3. The first KASAN report appears in the console about 212 s into the run in
+   our environment; with `panic_on_warn=1` the guest then panics.
+
+Numbers to confirm (all derivable from this repository):
+
+| Check | Command | Expected |
+|---|---|---|
+| programs in the sequence | `grep -c '^executing program' repro/repro.kernsight.prog` | 42 |
+| SCTP trigger programs | `./verify.sh` (parses the sequence) | #40 and #41 |
+| KASAN reports in the 7.3 sequence log | `grep -a -c 'KASAN: slab-use-after-free in sctp_unpack_cookie' logs/serial-7.3.log` | 1 |
+| first KASAN timestamp, 7.3 sequence | `grep -a -m1 'BUG: KASAN' logs/serial-7.3.log` | `[ 212.7...]` |
+| KASAN in standalone 7.3 run 1 / run 2 | same grep on `logs/serial-7.3-minimal*-no-trigger.log` | 0 / 0 |
+| KASAN in the 7.1.3 C run | same grep on `logs/serial-7.1.3-c-repro.log` | 1 |
+| `fail_skb_realloc` injection logged | `grep -a 'name fail_skb_realloc' logs/serial-7.3.log` | present |
+
+`./verify.sh` runs these checks and prints `OK`/`FAIL`.
 
 ## Fault injection
 
@@ -148,6 +184,7 @@ repro/repro.prog              syz program with fail_nth: 43 (7.1.3 minimal)
 repro/repro.cprog             C reproducer with fail-nth setup (7.1.3)
 repro/repro.kernsight.prog    42-program execution sequence (7.3.0)
 logs/                         full KASAN reports and console logs
+verify.sh                     checks the numbers quoted above
 kernel/                       kernel configs
 cmdline/                      kernel command lines
 MANIFEST.sha256               sha256 of every file in this repository
