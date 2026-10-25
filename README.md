@@ -123,6 +123,24 @@ Numbers to confirm (all derivable from this repository):
 
 `./verify.sh` runs these checks and prints `OK`/`FAIL`.
 
+## Revert test (62b08083ec3d)
+
+Following the maintainer's request, `62b08083ec3d` ("[SCTP]: Fix panic's when
+receiving fragmented SCTP control chunks.") was reverted by hand on top of
+7.3.0 (`pskb_pull()` + `goto nomem` -> `skb_pull()` in
+`sctp_sf_do_5_1D_ce()`, `sctp_sf_beat_8_3()` and
+`sctp_sf_do_5_2_4_dupcook()`), and the kernel was rebuilt with the same
+configuration (`7.3.0-kernsight-kasan #2`).
+
+Replaying the same 42-program sequence:
+
+| Kernel | Result |
+|---|---|
+| unmodified 7.3.0 | 1/1 trigger: GPF + KASAN slab-use-after-free in `sctp_unpack_cookie` (t=212.7 s) |
+| reverted 7.3.0 | 2/2 no panic, no KASAN report; fault injection still fires (`failslab`, `times 0`, 4 messages/run) but lands in `sctp_unpack_cookie+0x68e` instead of the skb reallocation hook |
+
+See `revert-test/` for the patch, the run logs and `counts.txt`.
+
 ## Fault injection
 
 The `sendto()` call is annotated with `fail_nth: 43`. During this execution,
@@ -184,6 +202,7 @@ repro/repro.prog              syz program with fail_nth: 43 (7.1.3 minimal)
 repro/repro.cprog             C reproducer with fail-nth setup (7.1.3)
 repro/repro.kernsight.prog    42-program execution sequence (7.3.0)
 logs/                         full KASAN reports and console logs
+revert-test/                  revert of 62b08083ec3d: patch, logs, counts
 verify.sh                     checks the numbers quoted above
 kernel/                       kernel configs
 cmdline/                      kernel command lines

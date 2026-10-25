@@ -1,0 +1,12 @@
+run1:
+  parsed: 42 programs
+  KASAN UAF: 0
+  kernel panic: 0
+  fault injection: 4
+  exec result: execprog finished without panic at 191s
+run2:
+  parsed: 42 programs
+  KASAN UAF: 0
+  kernel panic: 0
+  fault injection: 4
+  exec result: execprog finished without panic at 211s

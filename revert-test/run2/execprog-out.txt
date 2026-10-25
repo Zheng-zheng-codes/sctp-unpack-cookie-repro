@@ -1,0 +1,4 @@
+2026/10/25 08:16:08 parsed 42 programs
+2026/10/25 08:16:08 serving rpc on tcp://39847
+2026/10/25 08:16:17 executed programs: 0
+EXIT:0
