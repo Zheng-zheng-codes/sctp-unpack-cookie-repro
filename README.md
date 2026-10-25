@@ -137,7 +137,12 @@ Replaying the same 42-program sequence:
 | Kernel | Result |
 |---|---|
 | unmodified 7.3.0 | 1/1 trigger: GPF + KASAN slab-use-after-free in `sctp_unpack_cookie` (t=212.7 s) |
-| reverted 7.3.0 | 2/2 no panic, no KASAN report; fault injection still fires (`failslab`, `times 0`, 4 messages/run) but lands in `sctp_unpack_cookie+0x68e` instead of the skb reallocation hook |
+| reverted 7.3.0 | 2/2 no panic, no KASAN report; fault injection still fires (`failslab`, `times 0`, 4 messages/run) but lands in `sctp_unpack_cookie+0x68e` instead of the skb reallocation hook; no stale-pointer access was reported by KASAN |
+
+The same input and fail_nth annotations were used, but removing the
+`pskb_pull()` calls changes the fault-injection sequence, so the reverted runs
+do not provide equivalent injection coverage; they show that the original
+reproducer no longer triggers the reported UAF.
 
 See `revert-test/` for the patch, the run logs and `counts.txt`.
 
