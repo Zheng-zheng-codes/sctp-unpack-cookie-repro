@@ -1,0 +1,36 @@
+--- a/net/sctp/sm_statefuns.c
++++ b/net/sctp/sm_statefuns.c
+@@ -751,9 +751,8 @@
+ 	 */
+ 	chunk->subh.cookie_hdr =
+ 		(struct sctp_signed_cookie *)chunk->skb->data;
+-	if (!pskb_pull(chunk->skb, ntohs(chunk->chunk_hdr->length) -
+-					 sizeof(struct sctp_chunkhdr)))
+-		goto nomem;
++	skb_pull(chunk->skb, ntohs(chunk->chunk_hdr->length) -
++		 sizeof(struct sctp_chunkhdr));
+ 
+ 	/* 5.1 D) Upon reception of the COOKIE ECHO chunk, Endpoint
+ 	 * "Z" will reply with a COOKIE ACK chunk after building a TCB
+@@ -1211,8 +1210,7 @@
+ 		return sctp_sf_violation_paramlen(net, ep, asoc, type, arg,
+ 						  param_hdr, commands);
+ 
+-	if (!pskb_pull(chunk->skb, paylen))
+-		goto nomem;
++	skb_pull(chunk->skb, paylen);
+ 
+ 	reply = sctp_make_heartbeat_ack(asoc, chunk, param_hdr, paylen);
+ 	if (!reply)
+@@ -2253,9 +2251,8 @@
+ 	 * are in good shape.
+ 	 */
+ 	chunk->subh.cookie_hdr = (struct sctp_signed_cookie *)chunk->skb->data;
+-	if (!pskb_pull(chunk->skb, ntohs(chunk->chunk_hdr->length) -
+-					sizeof(struct sctp_chunkhdr)))
+-		goto nomem;
++	skb_pull(chunk->skb, ntohs(chunk->chunk_hdr->length) -
++		 sizeof(struct sctp_chunkhdr));
+ 
+ 	/* In RFC 2960 5.2.4 3, if both Verification Tags in the State Cookie
+ 	 * of a duplicate COOKIE ECHO match the Verification Tags of the

@@ -1,0 +1,13 @@
+qemu started port=12311 serial=/tmp/ksreplay-sctp73revert2.serial
+ssh up after 50s
+Warning: Permanently added '[127.0.0.1]:12311' (ED25519) to the list of known hosts.
+7.3.0-kernsight-kasan
+Linux version 7.3.0-kernsight-kasan (@58c6a76765c5) (gcc (Ubuntu 11.4.0-1ubuntu1~22.04.3) 11.4.0, GNU ld (GNU Binutils for Ubuntu) 2.38) #2 SMP PREEMPT_DYNAMIC Sun Oct 25 04:31:14 UTC 2026
+Warning: Permanently added '[127.0.0.1]:12311' (ED25519) to the list of known hosts.
+Warning: Permanently added '[127.0.0.1]:12311' (ED25519) to the list of known hosts.
+started
+execprog finished without panic at 211s
+---- 崩溃摘要(串口) ----
+[    3.757751][    T0] Spectre V2 : WARNING: Unprivileged eBPF is enabled with eIBRS on, data leaks possible via Spectre v2 BHB attacks!
+[  168.334457][T10586] WARNING: The mand mount option has been deprecated and
+---- 完整串口: /workspace/validation/ksval-out/replay-7.3-revert-sctp-recipe2/serial.log (容器内) ----

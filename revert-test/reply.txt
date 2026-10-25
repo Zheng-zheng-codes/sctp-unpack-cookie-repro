@@ -1,0 +1,71 @@
+Hi Marcelo,
+
+Thanks for the analysis; that matches what we observe.
+
+We reverted 62b08083ec3d by hand on top of 7.3.0 (the surrounding code has
+changed since 2006, so we dropped the goto nomem error checks). The three
+sites are sctp_sf_do_5_1D_ce(), sctp_sf_beat_8_3() and
+sctp_sf_do_5_2_4_dupcook(), replacing the pskb_pull()+goto nomem with
+skb_pull():
+
+--- a/net/sctp/sm_statefuns.c
++++ b/net/sctp/sm_statefuns.c
+@@ -751,9 +751,8 @@
+ 	 */
+ 	chunk->subh.cookie_hdr =
+ 		(struct sctp_signed_cookie *)chunk->skb->data;
+-	if (!pskb_pull(chunk->skb, ntohs(chunk->chunk_hdr->length) -
+-					 sizeof(struct sctp_chunkhdr)))
+-		goto nomem;
++	skb_pull(chunk->skb, ntohs(chunk->chunk_hdr->length) -
++		 sizeof(struct sctp_chunkhdr));
+ 
+ 	/* 5.1 D) Upon reception of the COOKIE ECHO chunk, Endpoint
+ 	 * "Z" will reply with a COOKIE ACK chunk after building a TCB
+@@ -1211,8 +1210,7 @@
+ 		return sctp_sf_violation_paramlen(net, ep, asoc, type, arg,
+ 						  param_hdr, commands);
+ 
+-	if (!pskb_pull(chunk->skb, paylen))
+-		goto nomem;
++	skb_pull(chunk->skb, paylen);
+ 
+ 	reply = sctp_make_heartbeat_ack(asoc, chunk, param_hdr, paylen);
+ 	if (!reply)
+@@ -2253,9 +2251,8 @@
+ 	 * are in good shape.
+ 	 */
+ 	chunk->subh.cookie_hdr = (struct sctp_signed_cookie *)chunk->skb->data;
+-	if (!pskb_pull(chunk->skb, ntohs(chunk->chunk_hdr->length) -
+-					sizeof(struct sctp_chunkhdr)))
+-		goto nomem;
++	skb_pull(chunk->skb, ntohs(chunk->chunk_hdr->length) -
++		 sizeof(struct sctp_chunkhdr));
+ 
+ 	/* In RFC 2960 5.2.4 3, if both Verification Tags in the State Cookie
+ 	 * of a duplicate COOKIE ECHO match the Verification Tags of the
+
+We rebuilt 7.3.0 with the same configuration (7.3.0-kernsight-kasan #2,
+gcc 11.4.0 Ubuntu 22.04, KASAN/KCOV, CONFIG_FAIL_SKB_REALLOC=y) and re-ran the
+same 42-program sequence that triggered the UAF on the unmodified 7.3.0.
+
+Results:
+- unmodified 7.3.0: 1/1, GPF + KASAN slab-use-after-free in
+  sctp_unpack_cookie, first report at t=212.7 s.
+- reverted 7.3.0: 2/2 runs completed without panic; neither serial log
+  contains the KASAN report. Fault injection still fires (failslab, times 0,
+  4 messages per run), but it now lands elsewhere in sctp_unpack_cookie
+  (stack shows sctp_unpack_cookie+0x68e) and there is no stale-pointer access.
+
+As you noted, this issue requires CONFIG_FAIL_SKB_REALLOC; our tests enable it.
+
+The revert patch, the two serial/console logs and the syz-execprog outputs are in
+the repository:
+  https://github.com/Zheng-zheng-codes/sctp-unpack-cookie-repro
+  (see revert-test/)
+
+I can also test the other two paths (5.1D COOKIE_ECHO / HEARTBEAT) or 7.1.3 if
+useful.
+
+Best regards,
+Zheng Zheng
