@@ -13,7 +13,15 @@
   - no `KASAN: slab-use-after-free in sctp_unpack_cookie` in either serial;
   - fault injection still fires (`failslab`, `times 0`, 4 messages/run), but
     the stack shows the injection landing in `sctp_unpack_cookie+0x68e`
-    instead of the skb reallocation hook, with no stale-pointer access.
+    instead of the skb reallocation hook; no stale-pointer access was reported
+    by KASAN.
+
+The same input sequence and fail_nth annotations were used. However, removing
+these `pskb_pull()` calls changes the fault-injection sequence: the reverted
+runs logged `failslab` injections instead of the original
+`fail_skb_realloc` injection. These results therefore show that the original
+reproducer no longer triggers the reported UAF after the revert; they do not
+establish equivalent injection coverage.
 
 `run1/` and `run2/` contain `serial.log`, `console.log`, `execprog-out.txt`;
 `counts.txt` summarizes the numbers.
